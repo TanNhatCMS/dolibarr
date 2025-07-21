@@ -513,8 +513,6 @@ class EmailCollector extends CommonObject
 	 */
 	public function fetchAll(User $user, $activeOnly = 0, $sortfield = 's.rowid', $sortorder = 'ASC', $limit = 100, $page = 0)
 	{
-		global $langs;
-
 		$obj_ret = array();
 
 		$sql = "SELECT s.rowid";
@@ -548,7 +546,6 @@ class EmailCollector extends CommonObject
 		} else {
 			$this->errors[] = 'EmailCollector::fetchAll Error when retrieve emailcollector list';
 			dol_syslog('EmailCollector::fetchAll Error when retrieve emailcollector list', LOG_ERR);
-			$ret = -1;
 		}
 		if (!count($obj_ret)) {
 			dol_syslog('EmailCollector::fetchAll No emailcollector found', LOG_DEBUG);
@@ -1945,7 +1942,8 @@ class EmailCollector extends CommonObject
 
 
 				if (getDolGlobalString('MAIN_IMAP_USE_PHPIMAP')) {
-					dol_syslog("msgid=".$overview['message_id']." date=".dol_print_date($overview['date'], 'dayrfc', 'gmt')." from=".$overview['from']." to=".$overview['to']." subject=".$overview['subject']);
+					$dateformated = dol_print_date($overview['date'], 'dayrfc', 'gmt');		// May generate a warning "dol_print_date($overview['date'], 'dayrfc', 'gmt')" in log
+					dol_syslog("msgid=".$overview['message_id']." date=".$dateformated." from=".$overview['from']." to=".$overview['to']." subject=".$overview['subject']);
 
 					// Removed emojis
 					$overview['subject'] = removeEmoji($overview['subject'], getDolGlobalInt('MAIN_EMAIL_COLLECTOR_ACCEPT_EMOJIS', 1));
