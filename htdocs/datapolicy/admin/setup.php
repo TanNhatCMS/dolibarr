@@ -29,6 +29,7 @@
 require '../../main.inc.php';
 require_once DOL_DOCUMENT_ROOT."/core/lib/admin.lib.php";
 require_once DOL_DOCUMENT_ROOT.'/datapolicy/lib/datapolicy.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/datapolicy/class/datapolicycron.class.php';
 require_once DOL_DOCUMENT_ROOT.'/cron/class/cronjob.class.php';
 
 /**
@@ -55,133 +56,22 @@ if (empty($action)) {
 	$action = 'edit';
 }
 
-// ==============================================================================
-// == DATA-DRIVEN CONFIGURATION STRUCTURE
-// ==============================================================================
-// This array drives the entire page logic (saving and rendering).
-// It is indexed by a logical key (e.g., 'tiers_client') for each data entity.
-// Each entry defines:
-// - 'label_key': The translation key for the row label.
-// - 'picto': The icon to display.
-// - 'config_keys': An associative array mapping an action ('anonymize', 'delete')
-//                  to the specific constant name stored in the database.
-// This structure allows defining anonymization, deletion, or both for any entity.
+// Get the array $arrayofparameters from _getDataPolicies
 $arrayofparameters = array();
+$dataPolicyCron = new DataPolicyCron($db);
+$arrayofelem = $dataPolicyCron->getDataPolicies();
+$arrayofparameters = array();
+foreach ($arrayofelem as $key => $val) {
+	$arrayofparameters[$val['group']][$key] = array(
+		'label_key' => $val['label_key'],
+		'picto' => $val['picto'],
+		'config_keys' => array(
+			'anonymize' => $val['const_anonymize'],
+			'delete'    => $val['const_delete']
+		)
+	);
+}
 
-// ThirdParty
-$arrayofparameters['ThirdParty'] = array(
-	'tiers_client' => array(
-		'label_key' => 'DATAPOLICY_TIERS_CLIENT',
-		'picto' => img_picto('', 'company', 'class="pictofixedwidth"'),
-		'config_keys' => array(
-			'anonymize' => 'DATAPOLICY_TIERS_CLIENT_ANONYMIZE_DELAY',
-			'delete'    => 'DATAPOLICY_TIERS_CLIENT_DELETE_DELAY'
-		)
-	),
-	'tiers_prospect' => array(
-		'label_key' => 'DATAPOLICY_TIERS_PROSPECT',
-		'picto' => img_picto('', 'company', 'class="pictofixedwidth"'),
-		'config_keys' => array(
-			'anonymize' => 'DATAPOLICY_TIERS_PROSPECT_ANONYMIZE_DELAY',
-			'delete'    => 'DATAPOLICY_TIERS_PROSPECT_DELETE_DELAY'
-		)
-	),
-	'tiers_prospect_client' => array(
-		'label_key' => 'DATAPOLICY_TIERS_PROSPECT_CLIENT',
-		'picto' => img_picto('', 'company', 'class="pictofixedwidth"'),
-		'config_keys' => array(
-			'anonymize' => 'DATAPOLICY_TIERS_PROSPECT_CLIENT_ANONYMIZE_DELAY',
-			'delete'    => 'DATAPOLICY_TIERS_PROSPECT_CLIENT_DELETE_DELAY'
-		)
-	),
-	'tiers_niprosp_niclient' => array(
-		'label_key' => 'DATAPOLICY_TIERS_NIPROSPECT_NICLIENT',
-		'picto' => img_picto('', 'company', 'class="pictofixedwidth"'),
-		'config_keys' => array(
-			'anonymize' => 'DATAPOLICY_TIERS_NIPROSPECT_NICLIENT_ANONYMIZE_DELAY',
-			'delete'    => 'DATAPOLICY_TIERS_NIPROSPECT_NICLIENT_DELETE_DELAY'
-		)
-	),
-	'tiers_fournisseur' => array(
-		'label_key' => 'DATAPOLICY_TIERS_FOURNISSEUR',
-		'picto' => img_picto('', 'supplier', 'class="pictofixedwidth"'),
-		'config_keys' => array(
-			'anonymize' => 'DATAPOLICY_TIERS_FOURNISSEUR_ANONYMIZE_DELAY',
-			'delete'    => 'DATAPOLICY_TIERS_FOURNISSEUR_DELETE_DELAY'
-		)
-	)
-);
-// Contact
-if (getDolGlobalString('DATAPOLICY_USE_SPECIFIC_DELAY_FOR_CONTACT')) {
-	$arrayofparameters['Contact'] = array(
-		'contact_client' => array(
-			'label_key' => 'DATAPOLICY_CONTACT_CLIENT',
-			'picto' => img_picto('', 'contact', 'class="pictofixedwidth"'),
-			'config_keys' => array(
-				'anonymize' => 'DATAPOLICY_CONTACT_CLIENT_ANONYMIZE_DELAY',
-				'delete'    => 'DATAPOLICY_CONTACT_CLIENT_DELETE_DELAY'
-			)
-		),
-		'contact_prospect' => array(
-			'label_key' => 'DATAPOLICY_CONTACT_PROSPECT',
-			'picto' => img_picto('', 'contact', 'class="pictofixedwidth"'),
-			'config_keys' => array(
-				'anonymize' => 'DATAPOLICY_CONTACT_PROSPECT_ANONYMIZE_DELAY',
-				'delete'    => 'DATAPOLICY_CONTACT_PROSPECT_DELETE_DELAY'
-			)
-		),
-		'contact_prospect_client' => array(
-			'label_key' => 'DATAPOLICY_CONTACT_PROSPECT_CLIENT',
-			'picto' => img_picto('', 'contact', 'class="pictofixedwidth"'),
-			'config_keys' => array(
-				'anonymize' => 'DATAPOLICY_CONTACT_PROSPECT_CLIENT_ANONYMIZE_DELAY',
-				'delete'    => 'DATAPOLICY_CONTACT_PROSPECT_CLIENT_DELETE_DELAY'
-			)
-		),
-		'contact_niprosp_niclient' => array(
-			'label_key' => 'DATAPOLICY_CONTACT_NIPROSPECT_NICLIENT',
-			'picto' => img_picto('', 'contact', 'class="pictofixedwidth"'),
-			'config_keys' => array(
-				'anonymize' => 'DATAPOLICY_CONTACT_NIPROSPECT_NICLIENT_ANONYMIZE_DELAY',
-				'delete'    => 'DATAPOLICY_CONTACT_NIPROSPECT_NICLIENT_DELETE_DELAY'
-			)
-		),
-		'contact_fournisseur' => array(
-			'label_key' => 'DATAPOLICY_CONTACT_FOURNISSEUR',
-			'picto' => img_picto('', 'contact', 'class="pictofixedwidth"'),
-			'config_keys' => array(
-				'anonymize' => 'DATAPOLICY_CONTACT_FOURNISSEUR_ANONYMIZE_DELAY',
-				'delete'    => 'DATAPOLICY_CONTACT_FOURNISSEUR_DELETE_DELAY'
-			)
-		)
-	);
-}
-// Member
-if (isModEnabled('member')) {
-	$arrayofparameters['Member'] = array(
-		'adherent' => array(
-			'label_key' => 'DATAPOLICY_ADHERENT',
-			'picto' => img_picto('', 'member', 'class="pictofixedwidth"'),
-			'config_keys' => array(
-				'anonymize' => 'DATAPOLICY_ADHERENT_ANONYMIZE_DELAY',
-				'delete'    => 'DATAPOLICY_ADHERENT_DELETE_DELAY'
-			)
-		)
-	);
-}
-// Recruitment: This entry demonstrates flexibility. Only a 'delete' action is defined.
-// The rendering logic will automatically leave the 'anonymize' column empty for this row.
-if (isModEnabled('recruitment')) {
-	$arrayofparameters['Recruitment'] = array(
-		'recruitment_candidature' => array(
-			'label_key' => 'DATAPOLICY_RECRUITMENT_CANDIDATURE',
-			'picto' => img_picto('', 'recruitmentcandidature', 'class="pictofixedwidth"'),
-			'config_keys' => array(
-				'delete' => 'DATAPOLICY_RECRUITMENT_CANDIDATURE_DELETE_DELAY'
-			)
-		)
-	);
-}
 
 // Dropdown options for delay selection
 $valTab = array(
@@ -287,7 +177,6 @@ if ($action == 'edit') {
 	// == DYNAMIC VIEW RENDERING
 	// ==============================================================================
 
-
 	// Loop through each configuration group (e.g., ThirdParty, Member).
 	foreach ($arrayofparameters as $title => $tab) {
 		print '<tr class="trforbreak liste_titre"><td class="titlefield trforbreak">'.$langs->trans($title).'</td>';
@@ -305,10 +194,30 @@ if ($action == 'edit') {
 			print '</td>';
 
 			// Column 1: Anonymization
-			print '<td>';
+			print '<td class="nowraponall">';
 			// Display the dropdown only if a constant key is defined for the 'anonymize' action.
-			if (isset($val['config_keys']['anonymize'])) {
+			if (!empty($val['config_keys']['anonymize'])) {
 				print Form::selectarray($val['config_keys']['anonymize'], $valTab, getDolGlobalString($val['config_keys']['anonymize']));
+
+				//var_dump($val);
+				$listoffieldsid = '';
+				foreach ($arrayofelem[$logicalKey]['anonymize_fields'] as $tmpkey => $tmpval) {
+					if ($tmpval == 'MAKEANONYMOUS') {
+						$listoffieldsid .= ($listoffieldsid ? ', ' : '').$tmpkey.' -> field-anonymous-ID';
+					}
+				}
+				$otherfields = '';
+				foreach ($arrayofelem[$logicalKey]['anonymize_fields'] as $tmpkey => $tmpval) {
+					if ($tmpval != 'MAKEANONYMOUS') {
+						$otherfields .= ($otherfields ? ', ' : '').$tmpkey.' -> '.json_encode($tmpval);
+					}
+				}
+
+				$htmltooltip = $langs->transnoentitiesnoconv("TheFollowingFieldsAreReplaceWith");
+				$htmltooltip .= '<br><small>'.$listoffieldsid.'</small>';
+				$htmltooltip .= '<br><br>'.$langs->transnoentitiesnoconv("OtherFieldsAreReplaceWithStaticValues");
+				$htmltooltip .= '<br><small>'.$otherfields.'</small>';
+				print $form->textwithpicto('', $htmltooltip);
 			}
 			print '</td>';
 
